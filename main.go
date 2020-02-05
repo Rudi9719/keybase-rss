@@ -170,8 +170,7 @@ func refresh(api keybase.ChatAPI) {
 			}
 		}
 		if time.Since(*item.PublishedParsed) < 24*time.Hour && !exists {
-			chat.Send(fmt.Sprintf(">%s\n```%s\n```\n>%s\n%s",
-				post.Title, post.Description, post.Pubdate, post.Link))
+			chat.Send(formatPost(post))
 		} else {
 			exists = true // Don't store tags unless they were generated today - RATE LIMIT
 		}
@@ -192,6 +191,10 @@ func refresh(api keybase.ChatAPI) {
 	}
 
 }
+func formatPost(p Post) string {
+	return fmt.Sprintf(">%s\n```%s\n```\n>%s\n%s",
+		p.Title, p.Description, p.Pubdate, p.Link)
+}
 
 // TODO: Periodically go through and refresh each team <------------------------------------------------
 
@@ -210,7 +213,12 @@ func getById(api keybase.ChatAPI) {
 		log.LogDebug(fmt.Sprintf("```%+v```", err))
 		return
 	}
-	chat.Send(fmt.Sprintf("```%+v```", resKey.Result.EntryValue))
+	var p Post
+	err = json.Unmarshal([]byte(resKey.Result.EntryValue), &p)
+	if err != nil {
+		log.LogError("Error unmarshalling JSON from EntryValue in getById(api)")
+	}
+	chat.Send(formatPost(p))
 }
 
 func status(api keybase.ChatAPI) {
