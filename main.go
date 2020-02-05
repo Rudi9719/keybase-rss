@@ -162,6 +162,13 @@ func refresh(api keybase.ChatAPI) {
 				break
 			}
 		}
+		if time.Since(*item.PublishedParsed) < (10*24)*time.Hour && exists {
+			_, delErr := subKey.Delete("keybase-rss", string(post.Id))
+			if delErr != nil {
+				log.LogError("Error deleting expired key from keybase-rss namespace")
+				log.LogDebug(fmt.Sprintf("Key: %s\n ```%+v```", string(post.Id), api.Msg.Channel))
+			}
+		}
 		if time.Since(*item.PublishedParsed) < 24*time.Hour && !exists {
 			chat.Send(fmt.Sprintf(">%s\n```%s\n```\n>%s\n%s",
 				post.Title, post.Description, post.Pubdate, post.Link))
