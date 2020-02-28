@@ -21,10 +21,10 @@ var (
 	// Logging Setup
 	logOpts = loggy.LogOpts{
 		UseStdout: true,
-		Level:     5,
-		//      KBTeam: "nightmarehaus.logs",
-		//	KBChann: "general",
-		//	ProgName: "rss",
+		Level:     4,
+		KBTeam:    "nightmarehaus.logs",
+		KBChann:   "general",
+		ProgName:  "rss",
 	}
 	log = loggy.NewLogger(logOpts)
 
@@ -114,6 +114,7 @@ func subscribe(api keybase.ChatAPI) {
 
 func refresh(api keybase.ChatAPI) {
 	log.LogInfo("Refreshing RSS Feed")
+	newPost := false
 	chat := k.NewChat(api.Msg.Channel)
 	subKey := k.NewKV(api.Msg.Channel.Name)
 	resKey, err := subKey.Get("keybase-rss", "config")
@@ -156,6 +157,7 @@ func refresh(api keybase.ChatAPI) {
 			testID := testSlice[len(testSlice)-1]
 			post.Id = testID
 		}
+		log.LogDebug(fmt.Sprintf("```%+v```", post))
 		for _, key := range existingKeys.Result.EntryKeys {
 			if key.EntryKey == post.Id {
 				exists = true
@@ -170,23 +172,28 @@ func refresh(api keybase.ChatAPI) {
 			}
 		}
 		if time.Since(*item.PublishedParsed) < 24*time.Hour && !exists {
+			newPost = true
 			chat.Send(formatPost(post))
 		} else {
 			exists = true // Don't store tags unless they were generated today - RATE LIMIT
 		}
 		if exists {
 			continue
-		}
-		jsonPost, jsonErr := json.Marshal(post)
-		if jsonErr != nil {
-			log.LogError("Error marshalling json in refresh()")
-			log.LogErrorType(jsonErr)
-		}
-		_, err = subKey.Put("keybase-rss", string(post.Id), string(jsonPost))
-		if err != nil {
-			log.LogError(fmt.Sprintf("Error on KV.Put() for jsonPost ID  %s", post.Id))
-			log.LogDebug(fmt.Sprintf("```%+v```", string(jsonPost)))
+		} else {
+			jsonPost, jsonErr := json.Marshal(post)
+			if jsonErr != nil {
+				log.LogError("Error marshalling json in refresh()")
+				log.LogErrorType(jsonErr)
+			}
+			_, err = subKey.Put("keybase-rss", string(post.Id), string(jsonPost))
+			if err != nil {
+				log.LogError(fmt.Sprintf("Error on KV.Put() for jsonPost ID  %s", post.Id))
+				log.LogDebug(fmt.Sprintf("```%+v```", string(jsonPost)))
 
+			}
+		}
+		if !newPost {
+			chat.Send("No new posts detected.")
 		}
 	}
 
@@ -207,16 +214,20 @@ func getById(api keybase.ChatAPI) {
 		return
 	}
 	subKey := k.NewKV(api.Msg.Channel.Name)
+	log.LogDebug(slices[2])
 	resKey, err := subKey.Get("keybase-rss", slices[2])
 	if err != nil {
 		log.LogError("Error getting result key in refresh()")
 		log.LogDebug(fmt.Sprintf("```%+v```", err))
+		chat.Send(fmt.Sprintf("There was an issue retrieving the key ```%+v```", slices[2]))
 		return
 	}
+	log.LogDebug(fmt.Sprintf("```%+v```", resKey.Result.EntryValue))
 	var p Post
 	err = json.Unmarshal([]byte(resKey.Result.EntryValue), &p)
 	if err != nil {
 		log.LogError("Error unmarshalling JSON from EntryValue in getById(api)")
+		return
 	}
 	chat.Send(formatPost(p))
 }
