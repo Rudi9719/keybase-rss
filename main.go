@@ -189,14 +189,14 @@ func refresh(api keybase.ChatAPI) {
 
 }
 
-func storePost(api ChatAPI, post Post) {
+func storePost(api keybase.ChatAPI, post Post) {
 	subKey := k.NewKV(api.Msg.Channel.Name)
 	jsonPost, jsonErr := json.Marshal(post)
 	if jsonErr != nil {
 		log.LogError("Error marshalling json in refresh()")
 		log.LogErrorType(jsonErr)
 	}
-	_, err = subKey.Put("keybase-rss", string(post.Id), string(jsonPost))
+	_, err := subKey.Put("keybase-rss", string(post.Id), string(jsonPost))
 	if err != nil {
 		log.LogError(fmt.Sprintf("Error on KV.Put() for jsonPost ID  %s", post.Id))
 		log.LogDebug(fmt.Sprintf("```%+v```", string(jsonPost)))
