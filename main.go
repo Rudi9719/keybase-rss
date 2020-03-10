@@ -180,23 +180,28 @@ func refresh(api keybase.ChatAPI) {
 		if exists {
 			continue
 		} else {
-			jsonPost, jsonErr := json.Marshal(post)
-			if jsonErr != nil {
-				log.LogError("Error marshalling json in refresh()")
-				log.LogErrorType(jsonErr)
-			}
-			_, err = subKey.Put("keybase-rss", string(post.Id), string(jsonPost))
-			if err != nil {
-				log.LogError(fmt.Sprintf("Error on KV.Put() for jsonPost ID  %s", post.Id))
-				log.LogDebug(fmt.Sprintf("```%+v```", string(jsonPost)))
-
-			}
+			go storePost(api, post)
 		}
 		if !newPost {
 			chat.Send("No new posts detected.")
 		}
 	}
 
+}
+
+func storePost(api ChatAPI, post Post) {
+	subKey := k.NewKV(api.Msg.Channel.Name)
+	jsonPost, jsonErr := json.Marshal(post)
+	if jsonErr != nil {
+		log.LogError("Error marshalling json in refresh()")
+		log.LogErrorType(jsonErr)
+	}
+	_, err = subKey.Put("keybase-rss", string(post.Id), string(jsonPost))
+	if err != nil {
+		log.LogError(fmt.Sprintf("Error on KV.Put() for jsonPost ID  %s", post.Id))
+		log.LogDebug(fmt.Sprintf("```%+v```", string(jsonPost)))
+
+	}
 }
 func formatPost(p Post) string {
 	return fmt.Sprintf(">%s\n```%s\n```\n>%s\n%s",
